@@ -1,0 +1,314 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    background: #4a6fa5;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 {
+    margin-bottom: 10px;
+}
+
+.toolbar {
+    padding: 15px;
+    background: #f0f0f0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar button {
+    padding: 8px 15px;
+    background: #4a6fa5;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.toolbar button:hover {
+    background: #3a5a8a;
+}
+
+/* Стили для кнопок форматирования текста */
+#boldBtn, #italicBtn, #alignLeftBtn, #alignCenterBtn, #alignRightBtn {
+    font-weight: bold;
+    width: auto;
+    min-width: 35px;
+    padding: 8px 12px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #6c757d;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: white;
+}
+
+#boldBtn:hover, #italicBtn:hover, #alignLeftBtn:hover, #alignCenterBtn:hover, #alignRightBtn:hover {
+    background: #5a6268;
+}
+
+#boldBtn {
+    font-weight: bold;
+}
+
+#italicBtn {
+    font-style: italic;
+    font-weight: normal;
+}
+
+#alignCenterBtn {
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* Дополнительные стили для кнопки печати */
+#printBtn {
+    background: #28a745;
+}
+
+#printBtn:hover {
+    background: #218838;
+}
+
+.canvas-container {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}
+
+#labelCanvas {
+    border: 1px solid #ccc;
+    background: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+}
+
+.controls {
+    padding: 20px;
+    background: #f9f9f9;
+    border-top: 1px solid #eee;
+}
+
+.size-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.size-controls label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.size-controls input[type="number"] {
+    width: 70px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.size-controls button {
+    padding: 8px 15px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.size-controls button:hover {
+    background: #218838;
+}
+
+.print-info {
+    margin-top: 15px;
+    padding: 10px;
+    background: #e9f7ef;
+    border-left: 4px solid #28a745;
+    border-radius: 4px;
+}
+
+.print-info p {
+    color: #155724;
+    font-size: 14px;
+}
+
+.content {
+    padding: 20px;
+}
+
+.content h2, .content h3 {
+    margin: 15px 0 10px 0;
+    color: #333;
+}
+
+.content ul {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.content li {
+    margin-bottom: 5px;
+}
+
+.button-group {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #4a6fa5;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.btn:hover {
+    background: #3a5a8a;
+}
+
+/* Стили для кнопки информации о печати */
+.toolbar a {
+    text-decoration: none;
+}
+
+.toolbar a button {
+    padding: 8px 15px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.toolbar a button:hover {
+    background: #5a6268;
+}
+
+.layouts-panel {
+    padding: 20px;
+    background: #f9f9f9;
+    border-top: 1px solid #eee;
+    margin-top: 20px;
+}
+
+.layouts-panel h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.layout-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.layout-actions input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.layout-actions button {
+    padding: 8px 15px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.layout-actions button:hover {
+    background: #218838;
+}
+
+.layouts-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.layout-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background-color: #fff;
+}
+
+.layout-item:last-child {
+    margin-bottom: 0;
+}
+
+.layout-item-name {
+    font-weight: bold;
+    flex: 1;
+}
+
+.layout-item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.layout-item-actions button {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.load-layout-btn {
+    background: #17a2b8;
+}
+
+.load-layout-btn:hover {
+    background: #138496;
+}
+
+.delete-layout-btn {
+    background: #dc3545;
+}
+
+.delete-layout-btn:hover {
+    background: #c82333;
+}
