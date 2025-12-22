@@ -24,15 +24,11 @@
             <input type="file" id="layoutImport" accept=".json" style="display: none;">
 
             <div class="print-mode-selector">
-                <label for="printModeSelect">Bixolon</label>
                 <select id="printModeSelect" onchange="updatePrintModeUI()">
                     <option value="current">Текущий вид</option>
                 </select>
-                <button id="bixolonPrintBtn">Печать</button>
-                <div id="printerStatus" class="printer-status disconnected">Принтер: не подключен</div>
-            </div>
-
-            <div class="print-mode-selector">
+                <button id="bixolonPrintBtn">→ Bixolon</button>
+                <div id="printerStatus" class="printer-status disconnected">...</div>
                 <button id="exportPdfBtn">→ PDF</button>
                 <button id="printBtn">→ PNG</button>
             </div>
@@ -68,24 +64,14 @@
             </div>
 
             <div class="print-mode-selector">
-                <button id="saveLayoutBtn">Сохранить макет</button>
-                <button id="importLayoutBtn">Импорт макета</button>
+                <button id="importLayoutBtn">Открыть</button>
+                <button id="saveLayoutBtn">Сохранить</button>
             </div>
 
         </div>
 
         <div class="canvas-container">
             <canvas id="labelCanvas" width="457" height="315"></canvas> <!-- 58*40 мм в пикселях при ~200 dpi -->
-        </div>
-
-        <!-- Контейнер для управления макетами -->
-        <div class="layouts-panel">
-            <h3>Сохраненные макеты</h3>
-            <div class="layout-actions">
-                <input type="text" id="layoutNameInput" placeholder="Введите имя макета">
-                <button id="saveLayoutConfirmBtn">Сохранить</button>
-            </div>
-            <div id="layoutsList" class="layouts-list"></div>
         </div>
 
         <div class="controls">
@@ -97,6 +83,53 @@
             <div class="print-info">
                 <p><strong>Информация о печати:</strong> Для печати на термопринтере экспортируйте дизайн в PDF и
                     используйте соответствующее программное обеспечение принтера.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Сохранить макет" -->
+    <div id="saveLayoutModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Сохранить макет</h2>
+                <span class="close" id="closeSaveModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="save-layout-input">
+                    <label for="layoutNameInputModal">Имя макета:</label>
+                    <input type="text" id="layoutNameInputModal" placeholder="Введите имя макета">
+                </div>
+                <div class="layouts-list-container">
+                    <h3>Существующие макеты:</h3>
+                    <div id="layoutsListModal" class="layouts-list-modal"></div>
+                </div>
+                <div class="modal-actions">
+                    <button id="saveLayoutModalBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Открыть макет" -->
+    <div id="openLayoutModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Открыть макет</h2>
+                <span class="close" id="closeOpenModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="layouts-list-container">
+                    <h3>Сохраненные макеты:</h3>
+                    <div id="layoutsListOpenModal" class="layouts-list-modal"></div>
+                </div>
+                <div class="import-layout-section">
+                    <h3>Импорт макета:</h3>
+                    <input type="file" id="layoutImportModal" accept=".json" style="display: none;">
+                    <button id="importLayoutModalBtn">Выбрать файл</button>
+                </div>
+                <div class="modal-actions">
+                    <button id="refreshLayoutsBtn">Обновить список</button>
+                </div>
             </div>
         </div>
     </div>

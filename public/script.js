@@ -77,6 +77,323 @@ if (sessionStorage.getItem('labelWidthMM') && sessionStorage.getItem('labelHeigh
     heightMM = parseFloat(sessionStorage.getItem('labelHeightMM'));
 }
 
+// Функция открытия модального окна "Сохранить макет"
+document.getElementById('saveLayoutBtn').addEventListener('click', function() {
+    loadLayoutsListModal();
+    document.getElementById('saveLayoutModal').style.display = 'block';
+});
+
+// Функция открытия модального окна "Открыть макет"
+document.getElementById('importLayoutBtn').addEventListener('click', function() {
+    loadLayoutsListOpenModal();
+    document.getElementById('openLayoutModal').style.display = 'block';
+});
+
+// Функция закрытия модального окна "Сохранить макет"
+document.getElementById('closeSaveModal').addEventListener('click', function() {
+    document.getElementById('saveLayoutModal').style.display = 'none';
+});
+
+// Функция закрытия модального окна "Открыть макет"
+document.getElementById('closeOpenModal').addEventListener('click', function() {
+    document.getElementById('openLayoutModal').style.display = 'none';
+});
+
+// Закрытие модальных окон при клике вне их области
+window.addEventListener('click', function(event) {
+    const saveModal = document.getElementById('saveLayoutModal');
+    const openModal = document.getElementById('openLayoutModal');
+    
+    if (event.target === saveModal) {
+        saveModal.style.display = 'none';
+    }
+    
+    if (event.target === openModal) {
+        openModal.style.display = 'none';
+    }
+});
+
+// Обработчик кнопки сохранения макета в модальном окне
+document.getElementById('saveLayoutModalBtn').addEventListener('click', async function() {
+    const layoutNameInput = document.getElementById('layoutNameInputModal');
+    const layoutName = layoutNameInput.value.trim();
+    
+    if (!layoutName) {
+        showNotification('Пожалуйста, введите имя макета', 'error');
+        return;
+    }
+    
+    try {
+        // Получаем данные текущего макета
+        const layoutData = getLayoutData();
+        
+        // Отправляем данные на сервер
+        const response = await fetch('/api/layouts/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: layoutName,
+                layoutData: layoutData
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('Макет успешно сохранен', 'success');
+            layoutNameInput.value = ''; // Очищаем поле ввода
+            document.getElementById('saveLayoutModal').style.display = 'none'; // Закрываем модальное окно
+            
+            // Обновляем список макетов
+            loadLayoutsList();
+        } else {
+            showNotification('Ошибка при сохранении макета: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка при сохранении макета:', error);
+        showNotification('Ошибка при сохранении макета', 'error');
+    }
+});
+
+// Обработчик кнопки импорта макета в модальном окне
+document.getElementById('importLayoutModalBtn').addEventListener('click', function() {
+    document.getElementById('layoutImportModal').click();
+});
+
+// Обработка загрузки файла макета
+document.getElementById('layoutImportModal').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(f) {
+        try {
+            const layoutData = JSON.parse(f.target.result);
+            loadLayoutData(layoutData);
+            document.getElementById('openLayoutModal').style.display = 'none'; // Закрываем модальное окно
+            showNotification('Макет успешно загружен', 'success');
+        } catch (error) {
+            showNotification('Ошибка при чтении файла макета: ' + error.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+});
+
+// Функция для загрузки списка макетов в модальное окно "Сохранить макет"
+async function loadLayoutsListModal() {
+    try {
+        const response = await fetch('/api/layouts');
+        const layouts = await response.json();
+        
+        if (response.ok) {
+            const layoutsList = document.getElementById('layoutsListModal');
+            layoutsList.innerHTML = '';
+            
+            if (layouts.length === 0) {
+                layoutsList.innerHTML = '<p>Нет сохраненных макетов</p>';
+                return;
+            }
+            
+            layouts.forEach(layout => {
+                const layoutItem = document.createElement('div');
+                layoutItem.className = 'layout-item-modal';
+                layoutItem.innerHTML = `
+                    <div class="layout-item-name-modal" data-name="${layout.name}">${layout.name}</div>
+                    <div class="layout-item-actions-modal">
+                        <button class="load-layout load-layout-btn-modal" data-filename="${layout.filename}">Загрузить</button>
+                        <button class="download-layout-btn-modal" data-filename="${layout.filename}">Скачать</button>
+                        <button class="delete-layout-btn-modal" data-filename="${layout.filename}">Удалить</button>
+                    </div>
+                `;
+                layoutsList.appendChild(layoutItem);
+            });
+            
+            // Добавляем обработчики для клика по названию макета (вставляет имя в поле ввода)
+            document.querySelectorAll('.layout-item-name-modal').forEach(nameElement => {
+                nameElement.addEventListener('click', function() {
+                    const layoutName = this.getAttribute('data-name');
+                    document.getElementById('layoutNameInputModal').value = layoutName;
+                });
+            });
+            
+            // Добавляем обработчики для кнопок загрузки
+            document.querySelectorAll('.load-layout-btn-modal').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const filename = this.getAttribute('data-filename');
+                    try {
+                        const response = await fetch(`/api/layouts/${filename}`);
+                        const layoutData = await response.json();
+                        
+                        if (response.ok) {
+                            loadLayoutData(layoutData);
+                            document.getElementById('saveLayoutModal').style.display = 'none'; // Закрываем модальное окно
+                        } else {
+                            showNotification('Ошибка при загрузке макета: ' + layoutData.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при загрузке макета:', error);
+                        showNotification('Ошибка при загрузке макета', 'error');
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для кнопок скачивания
+            document.querySelectorAll('.download-layout-btn-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filename = this.getAttribute('data-filename');
+                    // Создаем ссылку для скачивания файла
+                    const link = document.createElement('a');
+                    link.href = `/api/layouts/${filename}`;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            });
+            
+            // Добавляем обработчики для кнопок удаления
+            document.querySelectorAll('.delete-layout-btn-modal').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const filename = this.getAttribute('data-filename');
+                    const layoutName = filename.replace('.json', '');
+                    
+                    if (confirm(`Вы уверены, что хотите удалить макет "${layoutName}"?`)) {
+                        try {
+                            const response = await fetch(`/api/layouts/${filename}`, {
+                                method: 'DELETE'
+                            });
+                            const result = await response.json();
+                            
+                            if (response.ok) {
+                                showNotification('Макет успешно удален', 'success');
+                                // Обновляем список макетов
+                                loadLayoutsListModal();
+                                loadLayoutsList(); // Обновляем и основной список
+                            } else {
+                                showNotification('Ошибка при удалении макета: ' + result.error, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Ошибка при удалении макета:', error);
+                            showNotification('Ошибка при удалении макета', 'error');
+                        }
+                    }
+                });
+            });
+        } else {
+            console.error('Ошибка при получении списка макетов:', layouts.error);
+        }
+    } catch (error) {
+        console.error('Ошибка при получении списка макетов:', error);
+    }
+}
+
+// Функция для загрузки списка макетов в модальное окно "Открыть макет"
+async function loadLayoutsListOpenModal() {
+    try {
+        const response = await fetch('/api/layouts');
+        const layouts = await response.json();
+        
+        if (response.ok) {
+            const layoutsList = document.getElementById('layoutsListOpenModal');
+            layoutsList.innerHTML = '';
+            
+            if (layouts.length === 0) {
+                layoutsList.innerHTML = '<p>Нет сохраненных макетов</p>';
+                return;
+            }
+            
+            layouts.forEach(layout => {
+                const layoutItem = document.createElement('div');
+                layoutItem.className = 'layout-item-modal';
+                layoutItem.innerHTML = `
+                    <div class="layout-item-name-modal load-layout" data-filename="${layout.filename}">${layout.name}</div>
+                    <div class="layout-item-actions-modal">
+                        <button class="load-layout load-layout-btn-modal" data-filename="${layout.filename}">Загрузить</button>
+                        <button class="download-layout-btn-modal" data-filename="${layout.filename}">Скачать</button>
+                        <button class="delete-layout-btn-modal" data-filename="${layout.filename}">Удалить</button>
+                    </div>
+                `;
+                layoutsList.appendChild(layoutItem);
+            });
+            
+            // Добавляем обработчики для кнопок загрузки
+            document.querySelectorAll('.load-layout').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const filename = this.getAttribute('data-filename');
+                    try {
+                        const response = await fetch(`/api/layouts/${filename}`);
+                        const layoutData = await response.json();
+                        
+                        if (response.ok) {
+                            loadLayoutData(layoutData);
+                            document.getElementById('openLayoutModal').style.display = 'none'; // Закрываем модальное окно
+                        } else {
+                            showNotification('Ошибка при загрузке макета: ' + layoutData.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при загрузке макета:', error);
+                        showNotification('Ошибка при загрузке макета', 'error');
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для кнопок скачивания
+            document.querySelectorAll('.download-layout-btn-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filename = this.getAttribute('data-filename');
+                    // Создаем ссылку для скачивания файла
+                    const link = document.createElement('a');
+                    link.href = `/api/layouts/${filename}`;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            });
+            
+            // Добавляем обработчики для кнопок удаления
+            document.querySelectorAll('.delete-layout-btn-modal').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const filename = this.getAttribute('data-filename');
+                    const layoutName = filename.replace('.json', '');
+                    
+                    if (confirm(`Вы уверены, что хотите удалить макет "${layoutName}"?`)) {
+                        try {
+                            const response = await fetch(`/api/layouts/${filename}`, {
+                                method: 'DELETE'
+                            });
+                            const result = await response.json();
+                            
+                            if (response.ok) {
+                                showNotification('Макет успешно удален', 'success');
+                                // Обновляем список макетов
+                                loadLayoutsListOpenModal();
+                                loadLayoutsList(); // Обновляем и основной список
+                            } else {
+                                showNotification('Ошибка при удалении макета: ' + result.error, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Ошибка при удалении макета:', error);
+                            showNotification('Ошибка при удалении макета', 'error');
+                        }
+                    }
+                });
+            });
+        } else {
+            console.error('Ошибка при получении списка макетов:', layouts.error);
+        }
+    } catch (error) {
+        console.error('Ошибка при получении списка макетов:', error);
+    }
+}
+
+// Обработчик кнопки обновления списка макетов в модальном окне "Открыть макет"
+document.getElementById('refreshLayoutsBtn').addEventListener('click', function() {
+    loadLayoutsListOpenModal();
+});
+
 let labelWidth = widthMM * MM_TO_PX;
 let labelHeight = heightMM * MM_TO_PX;
 
@@ -227,10 +544,10 @@ document.getElementById('addImageBtn').addEventListener('click', addImage);
 document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
 document.getElementById('resizeCanvasBtn').addEventListener('click', resizeCanvas);
 
-// Добавляем обработчик для кнопки импорта макета
-document.getElementById('importLayoutBtn').addEventListener('click', function() {
-    document.getElementById('layoutImport').click();
-});
+// Добавляем обработчик для кнопки импорта макета (обновлен для использования модального окна)
+// document.getElementById('importLayoutBtn').addEventListener('click', function() {
+//     document.getElementById('layoutImport').click();
+// });
 
 // Дополнительные возможности редактирования
 canvas.on('selection:created', function(e) {
@@ -403,10 +720,10 @@ async function updatePrinterStatusDisplay() {
     const statusElement = document.getElementById('printerStatus');
     if (statusElement) {
         if (status.isConnected) {
-            statusElement.textContent = 'Принтер: подключен';
+            statusElement.textContent = 'Принтер подключен';
             statusElement.className = 'printer-status connected';
         } else {
-            statusElement.textContent = 'Принтер: не подключен';
+            statusElement.textContent = 'Принтер не подключен';
             statusElement.className = 'printer-status disconnected';
         }
     }
@@ -560,11 +877,11 @@ function loadLayoutData(layoutData) {
     });
 }
 
-// Обработчик кнопки сохранения макета
-document.getElementById('saveLayoutBtn').addEventListener('click', function() {
-    // Показываем поле ввода имени макета и кнопку подтверждения
-    document.querySelector('.layout-actions').style.display = 'flex';
-});
+// Обработчик кнопки сохранения макета (обновлен для использования модального окна)
+// document.getElementById('saveLayoutBtn').addEventListener('click', function() {
+//     // Показываем поле ввода имени макета и кнопку подтверждения
+//     document.querySelector('.layout-actions').style.display = 'flex';
+// });
 
 // Обработчик кнопки подтверждения сохранения
 document.getElementById('saveLayoutConfirmBtn').addEventListener('click', async function() {
