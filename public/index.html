@@ -1,58 +1,83 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Редактор этикеток</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <header>
             <h1>Редактор этикеток</h1>
             <p>Стандартный размер этикетки: 58 × 40 мм</p>
         </header>
-        
+
         <div class="toolbar">
-            <button id="addTextBtn">Добавить текст</button>
-            <button id="addImageBtn">Добавить изображение</button>
+            <div class="print-mode-selector">
+                <button id="addTextBtn">+ текст</button>
+                <button id="addImageBtn">+ изображение</button>
+            </div>
             <input type="file" id="imageUpload" accept="image/*" style="display: none;">
             <input type="file" id="layoutImport" accept=".json" style="display: none;">
-            <button id="exportPdfBtn">Экспорт в PDF</button>
-            <a href="print-info.html" target="_blank"><button type="button">Информация о печати</button></a>
-            <button id="printBtn">Печать</button>
-            <button id="saveLayoutBtn">Сохранить макет</button>
-            <button id="importLayoutBtn">Импорт макета</button>
-            <input type="color" id="textColorPicker" value="#000000">
-            <select id="fontSizeSelector">
-                <option value="12">12px</option>
-                <option value="14" selected>14px</option>
-                <option value="16">16px</option>
-                <option value="18">18px</option>
-                <option value="20">20px</option>
-                <option value="24">24px</option>
-                <option value="28">28px</option>
-                <option value="32">32px</option>
-            </select>
-            <select id="fontFamilySelector">
-                <option value="Arial" selected>Arial</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Courier New">Courier New</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Helvetica">Helvetica</option>
-            </select>
-            <button id="boldBtn">Ж</button>
-            <button id="italicBtn">К</button>
-            <button id="alignLeftBtn">←</button>
-            <button id="alignCenterBtn">C</button>
-            <button id="alignRightBtn">→</button>
+
+            <div class="print-mode-selector">
+                <label for="printModeSelect">Bixolon</label>
+                <select id="printModeSelect" onchange="updatePrintModeUI()">
+                    <option value="current">Текущий вид</option>
+                </select>
+                <button id="bixolonPrintBtn">Печать</button>
+                <div id="printerStatus" class="printer-status disconnected">Принтер: не подключен</div>
+            </div>
+
+            <div class="print-mode-selector">
+                <button id="exportPdfBtn">→ PDF</button>
+                <button id="printBtn">→ PNG</button>
+            </div>
+            <a href="print-info.html" target="_blank"><button type="button">О проекте</button></a>
+
+            <div class="print-mode-selector">
+                <input type="color" id="textColorPicker" value="#000000">
+                <select id="fontSizeSelector">
+                    <option value="12">12px</option>
+                    <option value="14" selected>14px</option>
+                    <option value="16">16px</option>
+                    <option value="18">18px</option>
+                    <option value="20">20px</option>
+                    <option value="24">24px</option>
+                    <option value="28">28px</option>
+                    <option value="32">32px</option>
+                </select>
+                <select id="fontFamilySelector">
+                    <option value="Arial" selected>Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Helvetica">Helvetica</option>
+                </select>
+            </div>
+            <div class="print-mode-selector">
+                <button id="boldBtn">Ж</button>
+                <button id="italicBtn">К</button>
+                <button id="alignLeftBtn">←</button>
+                <button id="alignCenterBtn">C</button>
+                <button id="alignRightBtn">→</button>
+            </div>
+
+            <div class="print-mode-selector">
+                <button id="saveLayoutBtn">Сохранить макет</button>
+                <button id="importLayoutBtn">Импорт макета</button>
+            </div>
+
         </div>
-        
+
         <div class="canvas-container">
             <canvas id="labelCanvas" width="457" height="315"></canvas> <!-- 58*40 мм в пикселях при ~200 dpi -->
         </div>
-        
+
         <!-- Контейнер для управления макетами -->
         <div class="layouts-panel">
             <h3>Сохраненные макеты</h3>
@@ -62,7 +87,7 @@
             </div>
             <div id="layoutsList" class="layouts-list"></div>
         </div>
-        
+
         <div class="controls">
             <div class="size-controls">
                 <label>Ширина (м): <input type="number" id="widthInput" value="58" min="10" max="100"></label>
@@ -70,13 +95,15 @@
                 <button id="resizeCanvasBtn">Изменить размер</button>
             </div>
             <div class="print-info">
-                <p><strong>Информация о печати:</strong> Для печати на термопринтере экспортируйте дизайн в PDF и используйте соответствующее программное обеспечение принтера.</p>
+                <p><strong>Информация о печати:</strong> Для печати на термопринтере экспортируйте дизайн в PDF и
+                    используйте соответствующее программное обеспечение принтера.</p>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -4,15 +4,14 @@ const path = require('path');
 const fs = require('fs');
 const { join, basename, resolve } = require('path');
 require('jspdf-autotable');
-const puppeteer = require('puppeteer');
+const BixolonPrinter = require('./bixolon/BixolonPrinter.js');
+
 const app = express();
 
 // Конфигурация приложения через переменные окружения
 const PORT = process.env.PORT || 3000;
 const LAYOUTS_DIR = process.env.LAYOUTS_DIR || join(__dirname, 'layouts');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
-const PUPPETEER_HEADLESS = process.env.PUPPETEER_HEADLESS !== 'false'; // по умолчанию true
-const SERVER_HOST = process.env.SERVER_HOST || 'localhost';
 
 // Настройка CORS с возможностью конфигурации
 const corsOptions = {
@@ -142,153 +141,6 @@ app.get('/api/layouts/:filename', (req, res) => {
     }
 });
 
-// Маршрут для генерации PDF по шаблону
-app.post('/api/generate-pdf', async (req, res) => {
-    let browser = null;
-    try {
-        const { template, data } = req.body;
-
-        if (!template) {
-            return res.status(400).json({ error: 'Отсутствует имя шаблона' });
-        }
-
-        if (!data || typeof data !== 'object') {
-            return res.status(400).json({ error: 'Данные должны быть объектом' });
-        }
-
-        // Проверяем имя шаблона
-        if (!isValidFilename(template)) {
-            return res.status(400).json({ error: 'Недопустимое имя шаблона' });
-        }
-
-        // Запускаем Puppeteer для открытия веб-интерфейса
-                browser = await puppeteer.launch({
-                    headless: PUPPETEER_HEADLESS,
-                    protocolTimeout: 60000, // Увеличиваем таймаут до 60 секунд
-                    args: [
-                        '--no-sandbox', // Необходимо для работы в Docker
-                        '--disable-setuid-sandbox', // Дополнительная защита в контейнере
-                        '--disable-dev-shm-usage', // Используем больше RAM вместо /dev/shm
-                        '--disable-accelerated-2d-canvas', // Отключаем ускорение 2D Canvas
-                        '--no-first-run', // Пропускаем первый запуск браузера
-                        '--no-zygote', // Отключаем zygote процесс
-                        '--disable-gpu', // Отключаем GPU процессы
-                        '--disable-web-security', // Отключаем безопасность для локальных файлов
-                        '--disable-features=VizDisplayCompositor', // Отключаем композитор отображения
-                        '--disable-background-timer-throttling', // Отключаем ограничение фоновых таймеров
-                        '--disable-renderer-backgrounding', // Отключаем фоновый рендеринг
-                        '--disable-backgrounding-occluded-windows', // Отключаем фоновые окна
-                        '--disable-ipc-flooding-protection', // Отключаем защиту от переполнения IPC
-                        '--export-tagged-pdf' // Экспортируем тегированный PDF
-                    ]
-                });
-        const page = await browser.newPage();
-
-        // Устанавливаем размер окна для правильной отрисовки
-        await page.setViewport({ width: 800, height: 600 });
-
-        // Переходим на главную страницу приложения
-                await page.goto(`http://${SERVER_HOST}:${PORT}/`, { waitUntil: 'networkidle2', timeout: 30000 });
-
-        // Читаем макет напрямую из локального файла
-        const filepath = join(LAYOUTS_DIR, `${template}.json`);
-
-        if (!fs.existsSync(filepath)) {
-            return res.status(404).json({ error: 'Макет не найден' });
-        }
-
-        const layoutData = JSON.parse(fs.readFileSync(filepath, 'utf8'));
-
-        // Загружаем макет в холст и заменяем переменные через UI
-        await page.evaluate((layoutData, data) => {
-            // Загружаем макет в холст
-            canvas.loadFromJSON(layoutData, function () {
-                // После загрузки макета заменяем переменные в текстовых объектах
-                canvas.getObjects().forEach(obj => {
-                    if (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') {
-                        if (obj.text && typeof obj.text === 'string') {
-                            let newText = obj.text;
-                            for (const [key, value] of Object.entries(data)) {
-                                // Заменяем все вхождения {{key}} на значение
-                                const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-                                newText = newText.replace(regex, value);
-                            }
-                            obj.set('text', newText);
-                            obj.setCoords(); // Обновляем координаты объекта после изменения текста
-                        }
-                    }
-                });
-
-                // Перерисовываем холст
-                canvas.renderAll();
-                
-                // Добавляем маркер на страницу после завершения рендеринга
-                const renderCompleteMarker = document.createElement('div');
-                renderCompleteMarker.id = 'render-complete-marker';
-                renderCompleteMarker.style.display = 'none';
-                renderCompleteMarker.textContent = 'render-complete';
-                document.body.appendChild(renderCompleteMarker);
-            });
-        }, layoutData, data);
-
-        // Ждем появления маркера завершения рендеринга
-        await page.waitForSelector('#render-complete-marker', { timeout: 10000 });
-
-        // Выполняем экспорт в PDF как в функции exportToPDF
-        const pdfDataUrl = await page.evaluate(() => {
-            return new Promise((resolve, reject) => {
-                try {
-                    // Получаем размеры холста из sessionStorage или используем значения из макета
-                    const widthMM = parseFloat(document.getElementById('widthInput').value) || 58;
-                    const heightMM = parseFloat(document.getElementById('heightInput').value) || 40;
-
-                    // Получаем данные холста в формате base64 с высоким качеством
-                    const dataURL = canvas.toDataURL({
-                        format: 'png',
-                        quality: 1,
-                        multiplier: 2 // Удваиваем разрешение для высокого качества
-                    });
-
-                    // Создаем PDF документ с точными размерами этикетки
-                    const { jsPDF } = window.jspdf;
-
-                    const pdf = new jsPDF({
-                        orientation: widthMM > heightMM ? 'landscape' : 'portrait',
-                        unit: 'mm',
-                        format: [widthMM, heightMM]
-                    });
-
-                    // Добавляем изображение на PDF с учетом точных размеров
-                    // Учитываем, что изображение теперь в 2 раза больше по разрешению
-                    pdf.addImage(dataURL, 'PNG', 0, 0, widthMM, heightMM);
-
-                    // Возвращаем PDF как Data URL
-                    const pdfDataUrl = pdf.output('datauristring');
-                    resolve(pdfDataUrl);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
-
-        // Извлекаем base64 часть из data URL
-        const base64Data = pdfDataUrl.split(',')[1];
-        const pdfBuffer = Buffer.from(base64Data, 'base64');
-
-        // Отправляем PDF клиенту
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${template}.pdf"`);
-        res.send(pdfBuffer);
-    } catch (error) {
-        console.error('Ошибка при генерации PDF:', error);
-        res.status(500).json({ error: `Ошибка сервера при генерации PDF: ${error.message}` });
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
-    }
-});
-
 // Маршрут для удаления макета
 app.delete('/api/layouts/:filename', (req, res) => {
     try {
@@ -322,6 +174,99 @@ app.delete('/api/layouts/:filename', (req, res) => {
     } catch (error) {
         console.error('Ошибка при удалении макета:', error);
         res.status(500).json({ error: 'Ошибка сервера при удалении макета' });
+    }
+});
+
+// Создаем экземпляр принтера Bixolon с использованием переменных окружения
+const bixolonPrinter = new BixolonPrinter(
+    process.env.BIXOLON_HOST || 'localhost',
+    parseInt(process.env.BIXOLON_PORT) || 18080,
+    process.env.BIXOLON_PRINTER_NAME || 'Printer1',
+    {
+        timeout: parseInt(process.env.BIXOLON_TIMEOUT) || 3000,
+        debug: process.env.BIXOLON_DEBUG === 'true' || false
+    }
+);
+
+// Маршрут для получения информации о принтере
+app.get('/api/printer-info', (req, res) => {
+    try {
+        const printerInfo = bixolonPrinter.getInfo();
+        res.json(printerInfo);
+    } catch (error) {
+        console.error('Ошибка при получении информации о принтере:', error);
+        res.status(500).json({ error: `Ошибка сервера при получении информации о принтере: ${error.message}` });
+    }
+});
+
+// Маршрут для проверки соединения с принтером
+app.get('/api/printer-connection', async (req, res) => {
+    try {
+        const isConnected = await bixolonPrinter.checkConnection();
+        res.json({ connected: isConnected });
+    } catch (error) {
+        console.error('Ошибка при проверке соединения с принтером:', error);
+        res.status(500).json({ error: `Ошибка сервера при проверке соединения: ${error.message}` });
+    }
+});
+
+// Универсальный маршрут для печати этикетки
+app.post('/api/print', async (req, res) => {
+    try {
+        console.log('Получен запрос на печать');
+        const { template, data, layoutData, printSettings } = req.body;
+
+        // Если указан режим печати сохраненного макета
+        if (template && data) {
+            // Загружаем макет из файла
+            const filepath = join(LAYOUTS_DIR, `${template}.json`);
+
+            if (!fs.existsSync(filepath)) {
+                return res.status(404).json({ error: 'Макет не найден' });
+            }
+
+            const layout = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+            console.log('Загружен макет:', layout);
+
+            // Заменяем плейсхолдеры в макете на значения из data
+            const processedLayout = bixolonPrinter.replacePlaceholders(layout, data);
+            console.log('Обработанные данные для Bixolon:', JSON.stringify(processedLayout, null, 2));
+
+            // Отправляем на печать
+            const printResult = await bixolonPrinter.printLabel(processedLayout, printSettings);
+            console.log('Результат печати:', printResult);
+
+            res.json({
+                message: 'Этикетка успешно отправлена на печать',
+                result: printResult
+            });
+            return;
+        }
+
+        // Если указан режим печати текущего вида
+        if (layoutData) {
+            // Проверяем наличие layoutData
+            if (!layoutData.widthMM || !layoutData.heightMM) {
+                return res.status(400).json({ error: 'Данные макета должны содержать widthMM и heightMM' });
+            }
+
+            console.log('Данные для печати:', JSON.stringify(layoutData, null, 2));
+
+            // Отправляем на печать
+            const printResult = await bixolonPrinter.printLabel(layoutData, printSettings);
+            console.log('Результат печати:', printResult);
+
+            res.json({
+                message: 'Этикетка успешно отправлена на печать',
+                result: printResult
+            });
+            return;
+        }
+
+        return res.status(400).json({ error: 'Отсутствуют необходимые данные для печати' });
+    } catch (error) {
+        console.error('Ошибка при печати:', error);
+        res.status(500).json({ error: `Ошибка сервера при печати: ${error.message}` });
     }
 });
 

@@ -9,6 +9,9 @@ services:
       - ./layouts:/app/layouts
     environment:
       - PORT=${PORT:-3000}
+      - BIXOLON_HOST=host.docker.internal
+      - BIXOLON_PORT=18080
+      - BIXOLON_PRINTER_NAME=Printer1
     env_file:
       - .env
     restart: unless-stopped

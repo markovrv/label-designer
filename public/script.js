@@ -9,6 +9,58 @@ const canvas = new fabric.Canvas('labelCanvas', {
     imageSmoothingEnabled: true
 });
 
+// Функция для отображения уведомлений
+function showNotification(message, type = 'info') {
+    // Создаем контейнер для уведомлений, если его еще нет
+    let container = document.querySelector('.notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    // Создаем содержимое уведомления
+    const content = document.createElement('div');
+    content.className = 'notification-content';
+    content.textContent = message;
+    
+    // Создаем кнопку закрытия
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'notification-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = function() {
+        closeNotification(notification);
+    };
+    
+    // Добавляем содержимое и кнопку закрытия в уведомление
+    notification.appendChild(content);
+    notification.appendChild(closeBtn);
+    
+    // Добавляем уведомление в контейнер
+    container.appendChild(notification);
+    
+    // Автоматически удаляем уведомление через 5 секунд (если не было закрыто вручную)
+    setTimeout(() => {
+        closeNotification(notification);
+    }, 5000);
+}
+
+// Функция для закрытия уведомления
+function closeNotification(notification) {
+    if (notification) {
+        notification.classList.add('fade-out');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }
+}
+
 // Установка высокого качества рендеринга
 canvas.enableRetinaScaling = true;
 canvas.imageSmoothingEnabled = true;
@@ -114,7 +166,7 @@ document.getElementById('layoutImport').addEventListener('change', function(e) {
             const layoutData = JSON.parse(f.target.result);
             loadLayoutData(layoutData);
         } catch (error) {
-            alert('Ошибка при чтении файла макета: ' + error.message);
+            showNotification('Ошибка при чтении файла макета: ' + error.message, 'error');
         }
     };
     reader.readAsText(file);
@@ -157,7 +209,7 @@ function resizeCanvas() {
     const heightMM = parseFloat(document.getElementById('heightInput').value);
     
     if (isNaN(widthMM) || isNaN(heightMM) || widthMM <= 0 || heightMM <= 0) {
-        alert('Пожалуйста, введите корректные значения размеров');
+        showNotification('Пожалуйста, введите корректные значения размеров', 'error');
         return;
     }
     
@@ -230,7 +282,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Функция печати
+// Функция стандартной печати
 document.getElementById('printBtn').addEventListener('click', function() {
     // Экспортируем холст в изображение с высоким качеством
     const dataURL = canvas.toDataURL({
@@ -283,6 +335,119 @@ document.getElementById('printBtn').addEventListener('click', function() {
         printWindow.print();
     };
 });
+
+// Функция печати Bixolon
+document.getElementById('bixolonPrintBtn').addEventListener('click', async function() {
+    try {
+        // Сначала проверяем соединение с принтером
+        const connectionStatus = await getPrinterConnectionStatus();
+        
+        if (!connectionStatus.isConnected) {
+            showNotification('Принтер не подключен к серверу печати. Печать невозможна.', 'error');
+            return;
+        }
+        
+        // Получаем выбранный режим печати
+        const printMode = document.getElementById('printModeSelect') ? document.getElementById('printModeSelect').value : 'current';
+        
+        let requestBody = {};
+        
+        if (printMode === 'current') {
+            // Режим печати текущего вида
+            const layoutData = getLayoutData();
+            requestBody = {
+                layoutData: layoutData
+            };
+        } else {
+            return ;
+        }
+        
+        // Отправляем данные на сервер для печати на Bixolon
+        const response = await fetch('/api/print', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('Макет отправлен на печать Bixolon', 'success');
+        } else {
+            showNotification('Ошибка при печати Bixolon: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка при отправке данных на печать Bixolon:', error);
+        showNotification('Ошибка при отправке данных на печать Bixolon', 'error');
+    }
+});
+
+
+
+// не отображать список режимов, печати, если режим один
+window.addEventListener('load', function() {
+    var printModeSelect = document.getElementById('printModeSelect');
+    if (printModeSelect.options.length === 1) {
+        printModeSelect.style.display = 'none'; // Скрываем выпадающий список
+    }
+    
+    // Инициализация отображения статуса соединения с принтером
+    updatePrinterStatusDisplay();
+});
+
+// Функция обновления отображения статуса принтера
+async function updatePrinterStatusDisplay() {
+    const status = await getPrinterConnectionStatus();
+    const statusElement = document.getElementById('printerStatus');
+    if (statusElement) {
+        if (status.isConnected) {
+            statusElement.textContent = 'Принтер: подключен';
+            statusElement.className = 'printer-status connected';
+        } else {
+            statusElement.textContent = 'Принтер: не подключен';
+            statusElement.className = 'printer-status disconnected';
+        }
+    }
+}
+
+// Функция получения статуса соединения с принтером
+async function getPrinterConnectionStatus() {
+    try {
+        const response = await fetch('/api/printer-connection', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        return {
+            isConnected: response.ok && result.connected && result.connected !== "not found match device",
+            details: result
+        };
+    } catch (error) {
+        console.error('Ошибка при проверке статуса принтера:', error);
+        return {
+            isConnected: false,
+            details: null
+        };
+    }
+}
+
+// Обновляем статус принтера каждые 10 секунд
+setInterval(updatePrinterStatusDisplay, 10000);
+
+// функция для обновления интерфейса в зависимости от выбранного режима печати
+function updatePrintModeUI() {
+    const printModeSelect = document.getElementById('printModeSelect');
+    if (!printModeSelect) return;
+    
+    const selectedMode = printModeSelect.value;
+    console.log('Выбран режим печати:', selectedMode);
+}
 
 // Функции форматирования текста
 document.getElementById('boldBtn').addEventListener('click', function() {
@@ -407,7 +572,7 @@ document.getElementById('saveLayoutConfirmBtn').addEventListener('click', async 
     const layoutName = layoutNameInput.value.trim();
     
     if (!layoutName) {
-        alert('Пожалуйста, введите имя макета');
+        showNotification('Пожалуйста, введите имя макета', 'error');
         return;
     }
     
@@ -430,18 +595,18 @@ document.getElementById('saveLayoutConfirmBtn').addEventListener('click', async 
         const result = await response.json();
         
         if (response.ok) {
-            alert('Макет успешно сохранен');
+            showNotification('Макет успешно сохранен', 'success');
             layoutNameInput.value = ''; // Очищаем поле ввода
             document.querySelector('.layout-actions').style.display = 'none'; // Скрываем форму
             
             // Обновляем список макетов
             loadLayoutsList();
         } else {
-            alert('Ошибка при сохранении макета: ' + result.error);
+            showNotification('Ошибка при сохранении макета: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Ошибка при сохранении макета:', error);
-        alert('Ошибка при сохранении макета');
+        showNotification('Ошибка при сохранении макета', 'error');
     }
 });
 
@@ -485,11 +650,11 @@ async function loadLayoutsList() {
                         if (response.ok) {
                             loadLayoutData(layoutData);
                         } else {
-                            alert('Ошибка при загрузке макета: ' + layoutData.error);
+                            showNotification('Ошибка при загрузке макета: ' + layoutData.error, 'error');
                         }
                     } catch (error) {
                         console.error('Ошибка при загрузке макета:', error);
-                        alert('Ошибка при загрузке макета');
+                        showNotification('Ошибка при загрузке макета', 'error');
                     }
                 });
             });
@@ -522,15 +687,15 @@ async function loadLayoutsList() {
                             const result = await response.json();
                             
                             if (response.ok) {
-                                alert('Макет успешно удален');
+                                showNotification('Макет успешно удален', 'success');
                                 // Обновляем список макетов
                                 loadLayoutsList();
                             } else {
-                                alert('Ошибка при удалении макета: ' + result.error);
+                                showNotification('Ошибка при удалении макета: ' + result.error, 'error');
                             }
                         } catch (error) {
                             console.error('Ошибка при удалении макета:', error);
-                            alert('Ошибка при удалении макета');
+                            showNotification('Ошибка при удалении макета', 'error');
                         }
                     }
                 });
@@ -654,7 +819,7 @@ window.addEventListener('load', function() {
             })
             .catch(error => {
                 console.error('Ошибка при загрузке макета:', error);
-                alert('Ошибка при загрузке макета: ' + error.message);
+                showNotification('Ошибка при загрузке макета: ' + error.message, 'error');
             });
     }
 });

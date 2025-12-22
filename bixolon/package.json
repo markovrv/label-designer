@@ -1,0 +1,43 @@
+{
+  "name": "bixolon-printer",
+  "version": "1.0.0",
+  "description": "Node.js класс для управления принтером этикеток Bixolon XD3-40d (203 DPI). Конвертирует Fabric.js JSON в команды Web Print SDK.",
+  "main": "BixolonPrinter.js",
+  "scripts": {
+    "start": "node examples.js",
+    "test": "jest",
+    "dev": "node examples.js",
+    "check-connection": "node -e \"const BixolonPrinter = require('./BixolonPrinter'); (async () => { const p = new BixolonPrinter('localhost', 18080, 'LabelPrinter', {debug: true}); console.log(await p.checkConnection()); })().catch(console.error)\""
+  },
+  "keywords": [
+    "bixolon",
+    "label-printer",
+    "xd3-40d",
+    "fabric.js",
+    "web-print-sdk",
+    "etiqueta",
+    "sticker",
+    "barcode",
+    "qr-code",
+    "203dpi"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/bixolon-printer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/bixolon-printer/issues"
+  },
+  "homepage": "https://github.com/yourusername/bixolon-printer#readme"
+}

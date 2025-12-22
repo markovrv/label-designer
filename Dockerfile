@@ -1,21 +1,5 @@
 FROM node:18-alpine
 
-# Установка зависимостей для Puppeteer
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    fontconfig \
-    dbus \
-    tini
-
-# Установка переменных окружения для Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Установка рабочей директории
 WORKDIR /app
@@ -28,6 +12,8 @@ RUN npm ci --only=production
 
 # Копирование остальных файлов проекта
 COPY server.js ./
+# Убираем строку, так как папки server/ не существует
+COPY bixolon/ ./bixolon/
 COPY public/ ./public/
 COPY layouts/ ./layouts/
 
@@ -44,5 +30,4 @@ ENV PORT=3000
 EXPOSE $PORT
 
 # Запуск приложения
-ENTRYPOINT ["tini", "--"]
 CMD ["npm", "start"]

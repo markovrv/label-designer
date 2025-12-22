@@ -26,8 +26,7 @@
     "jsdom": "^20.0.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^5.0.2",
-    "multer": "^1.4.5-lts.1",
-    "puppeteer": "^24.33.0"
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
