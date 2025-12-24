@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -5,6 +6,9 @@ const fs = require('fs');
 const { join, basename, resolve } = require('path');
 require('jspdf-autotable');
 const BixolonPrinter = require('./bixolon/BixolonPrinter.js');
+
+// Импортируем модуль для генерации штрих-кодов
+const bwipjs = require('bwip-js');
 
 const app = express();
 
@@ -23,8 +27,8 @@ app.use(cors(corsOptions));
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Сервим статические файлы из public
 app.use(express.static('public'));
@@ -202,8 +206,8 @@ app.get('/api/printer-info', (req, res) => {
 // Маршрут для проверки соединения с принтером
 app.get('/api/printer-connection', async (req, res) => {
     try {
-        const isConnected = await bixolonPrinter.checkConnection();
-        res.json({ connected: isConnected });
+        var data = await bixolonPrinter.checkConnection();
+        res.json({ connected: data?.Result });
     } catch (error) {
         console.error('Ошибка при проверке соединения с принтером:', error);
         res.status(500).json({ error: `Ошибка сервера при проверке соединения: ${error.message}` });
@@ -273,4 +277,113 @@ app.post('/api/print', async (req, res) => {
 // Запуск сервера
 app.listen(PORT, () => {
     console.log(`Сервер запущен на http://localhost:${PORT}`);
+});
+
+
+// Вспомогательные функции для вычисления контрольных цифр EAN
+function calculateEAN8CheckDigit(code) {
+    if (code.length !== 7) throw new Error('Для вычисления контрольной цифры EAN-8 необходимо 7 цифр');
+    const digits = code.split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 7; i++) if ((7 - i) % 2 === 1) sum += digits[i] * 3;else sum += digits[i];
+    return (10 - sum % 10) % 10;
+}
+
+function calculateEAN13CheckDigit(code) {
+    if (code.length !== 12) throw new Error('Для вычисления контрольной цифры EAN-13 необходимо 12 цифр');
+    const digits = code.split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 12; i++) if ((12 - i) % 2 === 1) sum += digits[i] * 3; else sum += digits[i];
+    return (10 - sum % 10) % 10;
+}
+
+// Маршрут для генерации штрих-кода
+app.get('/get-barcode', async (req, res) => {
+    try {
+        const { includetext, text, bcid, width, height} = req.query;
+        
+        // Проверяем параметры
+        if (!text) return res.status(400).json({ error: 'Параметр text обязателен' });
+        if (!bcid) return res.status(400).json({ error: 'Параметр bcid обязателен' });
+        if (bcid !== 'ean8' && bcid !== 'ean13') return res.status(400).json({ error: 'Параметр bcid должен быть ean8 или ean13' });
+        if (!/^\d+$/.test(text)) return res.status(400).json({ error: 'Параметр text должен содержать только цифры' });
+        if (width && !/^\d+$/.test(width)) return res.status(400).json({ error: 'Параметр width должен содержать только цифры' });
+        if (height && !/^\d+$/.test(height)) return res.status(400).json({ error: 'Параметр height должен содержать только цифры' });
+
+        // Определяем требуемую длину кода
+        const requiredLength = bcid === 'ean8' ? 8 : 13;
+        let code = text;
+
+        // Если длина кода меньше требуемой, вычисляем контрольные цифры
+        if (code.length === 7 && bcid === 'ean8') {
+            // Добавляем контрольную цифру для EAN-8
+            const checksum = calculateEAN8CheckDigit(code);
+            code = code + checksum;
+        } else if (code.length === 12 && bcid === 'ean13') {
+            // Добавляем контрольную цифру для EAN-13
+            const checksum = calculateEAN13CheckDigit(code);
+            code = code + checksum;
+        } else if (code.length === 6 && bcid === 'ean8') {
+            // Добавляем недостающие цифры и контрольную цифру для EAN-8
+            code = code + '0'; // добавляем один ноль для получения 7 цифр
+            const checksum = calculateEAN8CheckDigit(code);
+            code = code + checksum;
+        } else if (code.length === 11 && bcid === 'ean13') {
+            // Добавляем недостающие цифры и контрольную цифру для EAN-13
+            code = code + '0'; // добавляем один ноль для получения 12 цифр
+            const checksum = calculateEAN13CheckDigit(code);
+            code = code + checksum;
+        } else if (code.length === requiredLength) {
+            // Если длина уже правильная, проверяем контрольную цифру
+            if (bcid === 'ean8') {
+                const expectedCheckDigit = calculateEAN8CheckDigit(code.substring(0, 7));
+                if (parseInt(code[7]) !== expectedCheckDigit) {
+                    return res.status(400).json({ error: `Неверная контрольная цифра для EAN-8. Ожидалась: ${expectedCheckDigit}, получена: ${code[7]}` });
+                }
+            } else if (bcid === 'ean13') {
+                const expectedCheckDigit = calculateEAN13CheckDigit(code.substring(0, 12));
+                if (parseInt(code[12]) !== expectedCheckDigit) {
+                    return res.status(400).json({ error: `Неверная контрольная цифра для EAN-13. Ожидалась: ${expectedCheckDigit}, получена: ${code[12]}` });
+                }
+            }
+        } else {
+            return res.status(400).json({ error: `Параметр text должен содержать ${requiredLength} или ${requiredLength-1} цифр для ${bcid}` });
+        }
+
+        // Проверяем, что итоговая длина соответствует ожидаемой
+        if (code.length !== requiredLength) {
+            return res.status(400).json({ error: `Параметр text должен содержать ${requiredLength} или ${requiredLength-1} цифр для ${bcid}` });
+        }
+
+        // Проверяем, что код имеет правильный формат
+        if (bcid === 'ean8' && code.length !== 8) {
+            return res.status(400).json({ error: 'Для EAN-8 код должен содержать 8 цифр' });
+        }
+        if (bcid === 'ean13' && code.length !== 13) {
+            return res.status(400).json({ error: 'Для EAN-13 код должен содержать 13 цифр' });
+        }
+
+        // Настройки для генерации штрих-кода с помощью bwip-js
+        const options = {
+            bcid: bcid, // ean8 или ean13
+            text: code,
+            scaleX: 4, // масштабирование по X
+            scaleY: 4, // масштабирование по Y
+            includetext: !!includetext, // отображать текст под штрих-кодом, если includetext присутствует
+            textxalign: 'center', // выравнивание текста
+            height: height || 15, // высота штрих-кода
+        };
+        if (width > 0) options.width = width; // устанавливаем ширину, если она указана
+
+        // Генерируем изображение штрих-кода
+        const png = await bwipjs.toBuffer(options);
+
+        // Устанавливаем заголовки для ответа
+        res.set('Content-Type', 'image/png');
+        res.set('Cache-Control', 'no-cache');
+        res.send(png);
+    } catch (error) {
+        console.error('Ошибка при генерации штрих-кода:', error);
+        res.status(500).json({ error: `Ошибка сервера при генерации штрих-кода: ${error.message}` });
+    }
 });

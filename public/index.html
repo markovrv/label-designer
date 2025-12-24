@@ -19,6 +19,7 @@
             <div class="print-mode-selector">
                 <button id="addTextBtn">+ текст</button>
                 <button id="addImageBtn">+ изображение</button>
+                <button id="addBarcodeBtn">+ штрихкод</button>
             </div>
             <input type="file" id="imageUpload" accept="image/*" style="display: none;">
             <input type="file" id="layoutImport" accept=".json" style="display: none;">
@@ -27,11 +28,12 @@
                 <select id="printModeSelect" onchange="updatePrintModeUI()">
                     <option value="current">Текущий вид</option>
                 </select>
-                <button id="bixolonPrintBtn">→ Bixolon</button>
-                <div id="printerStatus" class="printer-status disconnected">...</div>
+                <button id="bixolonPrintBtn">→ Bixolon <span id="printerStatus" class="printer-status disconnected"></span></button>
                 <button id="exportPdfBtn">→ PDF</button>
+                <button id="label2img">→ BMP</button>
                 <button id="printBtn">→ PNG</button>
             </div>
+
             <a href="print-info.html" target="_blank"><button type="button">О проекте</button></a>
 
             <div class="print-mode-selector">
@@ -80,10 +82,6 @@
                 <label>Высота (мм): <input type="number" id="heightInput" value="40" min="10" max="100"></label>
                 <button id="resizeCanvasBtn">Изменить размер</button>
             </div>
-            <div class="print-info">
-                <p><strong>Информация о печати:</strong> Для печати на термопринтере экспортируйте дизайн в PDF и
-                    используйте соответствующее программное обеспечение принтера.</p>
-            </div>
         </div>
     </div>
 
@@ -129,6 +127,48 @@
                 </div>
                 <div class="modal-actions">
                     <button id="refreshLayoutsBtn">Обновить список</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Всплывающее окно для редактирования штрихкода -->
+    <div id="barcodeModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактировать штрихкод</h2>
+                <span class="close" id="closeBarcodeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="barcodeType">Тип штрихкода:</label>
+                    <select id="barcodeType">
+                        <option value="EAN8">EAN-8</option>
+                        <option value="EAN13">EAN-13</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="barcodeData">Текст штрихкода:</label>
+                    <input type="text" id="barcodeData" placeholder="Введите текст штрихкода" required>
+                </div>
+                <div class="form-group">
+                    <label for="barcodeWidth">Ширина штрихкода:</label>
+                    <input type="number" id="barcodeWidth" placeholder="Введите ширину штрихкода" min = "0">
+                </div>
+                <div class="form-group">
+                    <label for="barcodeHeight">Высота штрихкода:</label>
+                    <input type="number" id="barcodeHeight" placeholder="Введите высоту штрихкода" min = "0">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="barcodeIncludeText" checked>
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Отображать текст</span>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button id="saveBarcodeBtn">Сохранить</button>
+                    <button id="cancelBarcodeBtn">Отмена</button>
                 </div>
             </div>
         </div>
